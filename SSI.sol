@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract SSI {
     uint256 public docCount = 0;
@@ -29,15 +30,24 @@ contract SSI {
         return (doc.user_did, doc.did, doc.ipfs, doc.status);
     }
 
-    function verifyDocument(uint256 id, string memory user_did, string memory did, string memory ipfs, string memory signature) public {
-        require(id < docCount, "Invalid document ID");
-        Document storage doc = documents[id];
-        doc.user_did = user_did;
-        doc.did = did;
-        doc.ipfs = ipfs;
-        doc.signature = signature;
-        doc.status = true;
-    }
+    function verifyDocument(uint256 id, string memory user_did, string memory did, string memory ipfs, bytes memory signature) public {
+    require(id < docCount, "Invalid document ID");
+    Document storage doc = documents[id];
+    
+    string memory message = string(abi.encodePacked(user_did, did, ipfs));
+    bytes32 messageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", keccak256(bytes(message))));
+    
+    address recoveredAddress = ECDSA.recover(messageHash, signature);
+    
+    require(keccak256(abi.encodePacked(recoveredAddress)) == keccak256(abi.encodePacked(user_did)), "Signature verification failed");
+    
+    doc.user_did = user_did;
+    doc.did = did;
+    doc.ipfs = ipfs;
+    doc.signature = string(signature);
+    doc.status = true;
+}
+
 
     function totalDocuments() public view returns (uint256) {
         return docCount;
